@@ -132,7 +132,7 @@ namespace FelixDev.StardewMods.ToolUpgradeDeliveryService.Framework
             Tool upgradeTool = Game1.player.toolBeingUpgraded.Value;
 
             // If the tool upgrade is done by tomorrow, send a tool-upgrade mail for the next day.
-            if (daysLeftForToolUpgrade == 1)
+            if (daysLeftForToolUpgrade == 1 && upgradeTool != null)
             {
                 SetToolMailForDay(1, upgradeTool);
                 return;
@@ -217,7 +217,7 @@ namespace FelixDev.StardewMods.ToolUpgradeDeliveryService.Framework
         private void OnMailClosed(object sender, MailClosedEventArgs e)
         {
             // If the mail is not a tool uprade mail by Clint or no tool was selected -> do nothing
-            if (!IsToolMail(e.Id) || !(e.InteractionRecord is ItemMailInteractionRecord interactionRecord) 
+            if (!IsToolMail(e.Id) || !(e.InteractionRecord is ItemMailInteractionRecord interactionRecord)
                 || interactionRecord.SelectedItems.Count == 0)
             {
                 return;
@@ -239,8 +239,12 @@ namespace FelixDev.StardewMods.ToolUpgradeDeliveryService.Framework
                 }
             }
 
-            // Add selected tool item to the player's inventory
-            Game1.player.addItemByMenuIfNecessary(selectedTool);
+            if (selectedTool.BaseName.Contains("Trash Can"))
+                // Upgrades the Thrash Can
+                Game1.player.trashCanLevel++;
+            else
+                // Add selected tool item to the player's inventory
+                Game1.player.addItemByMenuIfNecessary(selectedTool);
 
             // Mark the tool upgrade process as finished, so that Clint won't hand it out when visiting him.
             Game1.player.toolBeingUpgraded.Value = null;
@@ -253,7 +257,11 @@ namespace FelixDev.StardewMods.ToolUpgradeDeliveryService.Framework
         /// <returns>The mail ID for the specified <paramref name="tool"/> upgrade.</returns>
         private string GetMailIdFromTool(Tool tool)
         {
-            return TOOL_MAIL_ID_PREFIX + tool.BaseName + tool.UpgradeLevel;
+            // The whitespaces in the tool's name have to be replaced
+            // in order to avoid a FormatException when the player
+            // opens the mail from the collection menu after having
+            // opened it once from the mail box.
+            return TOOL_MAIL_ID_PREFIX + tool.BaseName.Replace(' ', '_') + tool.UpgradeLevel;
         }
 
         /// <summary>
@@ -303,7 +311,15 @@ namespace FelixDev.StardewMods.ToolUpgradeDeliveryService.Framework
                     translationKey = Translation.MAIL_TOOL_UPGRADE_WATERING_CAN;
                     break;
                 default:
-                    return null;
+                    if (tool.BaseName.Contains("Trash Can"))
+                    {
+                        translationKey = Translation.MAIL_TOOL_UPGRADE_TRASH_CAN;
+                        break;
+                    }
+                    else
+                    {
+                        return null;
+                    }
             }
 
             return translationHelper.Get(translationKey);
